@@ -14,6 +14,7 @@ Next.js + TypeORM demo that streams, filters, and bulk-updates incidents against
 
 - **UI**: Next.js (App Router), MUI components, React Query for data/state, context providers for filters/table/selection/stream prefs.
 - **Data**: TypeORM + SQLite, streaming endpoint `/api/incidents/stream`, REST for CRUD and related lookups.
+- **HTTP**: Axios for client calls (wrapped by React Query) with optimistic updates for mutations.
 - **Testing**: Vitest + Testing Library (unit/integration), Playwright (E2E streaming, filters, bulk flows). Test artifacts excluded via `.gitignore`.
 - **Tooling**: ESLint, Prettier, TypeScript, PostCSS/Tailwind base, Playwright config for e2e.
 
