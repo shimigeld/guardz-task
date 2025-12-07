@@ -1,0 +1,57 @@
+[
+  {
+    "id": "sample-1",
+    "severity": "Critical",
+    "title": "Unauthorized access attempt detected",
+    "account": "acme-corp",
+    "source": "EDR",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "status": "Open",
+    "tags": ["urgent", "malware"],
+    "owner": null
+  },
+  {
+    "id": "sample-2",
+    "severity": "High",
+    "title": "Suspicious file download",
+    "account": "tech-startup-inc",
+    "source": "Email",
+    "timestamp": "2024-01-15T10:25:00Z",
+    "status": "Investigating",
+    "tags": ["phishing", "manual-review"],
+    "owner": "analyst-1"
+  },
+  {
+    "id": "sample-3",
+    "severity": "Med",
+    "title": "Multiple failed login attempts",
+    "account": "global-enterprise",
+    "source": "Identity",
+    "timestamp": "2024-01-15T10:20:00Z",
+    "status": "Open",
+    "tags": ["automated"],
+    "owner": null
+  },
+  {
+    "id": "sample-4",
+    "severity": "Low",
+    "title": "Unusual network traffic pattern",
+    "account": "finance-company",
+    "source": "Network",
+    "timestamp": "2024-01-15T10:15:00Z",
+    "status": "Resolved",
+    "tags": ["false-positive"],
+    "owner": "analyst-2"
+  },
+  {
+    "id": "sample-5",
+    "severity": "Critical",
+    "title": "Malware signature detected",
+    "account": "healthcare-provider",
+    "source": "EDR",
+    "timestamp": "2024-01-15T10:10:00Z",
+    "status": "Investigating",
+    "tags": ["urgent", "malware", "critical-asset"],
+    "owner": "analyst-1"
+  }
+]

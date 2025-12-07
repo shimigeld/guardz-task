@@ -1,0 +1,58 @@
+[
+  {
+    "severity": "Critical",
+    "title": "Ransomware activity detected",
+    "account": "retail-chain",
+    "source": "EDR",
+    "tags": ["urgent", "malware", "critical-asset"]
+  },
+  {
+    "severity": "High",
+    "title": "Command and control communication",
+    "account": "manufacturing-ltd",
+    "source": "Network",
+    "tags": ["malware", "external"]
+  },
+  {
+    "severity": "Med",
+    "title": "Insider threat indicators",
+    "account": "consulting-group",
+    "source": "Identity",
+    "tags": ["insider", "manual-review"]
+  },
+  {
+    "severity": "Low",
+    "title": "API abuse detected",
+    "account": "acme-corp",
+    "source": "Cloud",
+    "tags": ["automated"]
+  },
+  {
+    "severity": "Critical",
+    "title": "Zero-day exploit attempt",
+    "account": "tech-startup-inc",
+    "source": "Endpoint",
+    "tags": ["urgent", "malware", "compliance"]
+  },
+  {
+    "severity": "High",
+    "title": "Credential stuffing attack",
+    "account": "global-enterprise",
+    "source": "Identity",
+    "tags": ["external", "automated"]
+  },
+  {
+    "severity": "Med",
+    "title": "Data exfiltration attempt",
+    "account": "finance-company",
+    "source": "Network",
+    "tags": ["insider", "compliance"]
+  },
+  {
+    "severity": "Low",
+    "title": "Phishing email reported",
+    "account": "healthcare-provider",
+    "source": "Email",
+    "tags": ["phishing", "false-positive"]
+  }
+]
