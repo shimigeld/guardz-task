@@ -2,7 +2,7 @@ import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import axios from 'axios';
+import { http } from '../httpClient';
 import {
   useIncidentBulkActionMutation,
   useIncidentStream,
@@ -11,13 +11,13 @@ import {
 } from '../incidentService';
 import type { Incident, IncidentFilters, IncidentsResponse, TableState } from '@/types/incident';
 
-vi.mock('axios', () => {
+vi.mock('../httpClient', () => {
   const get = vi.fn();
   const patch = vi.fn();
   const del = vi.fn();
 
   return {
-    default: {
+    http: {
       get,
       patch,
       delete: del,
@@ -44,7 +44,7 @@ const buildIncident = (overrides: Partial<Incident> = {}): Incident => ({
   ...overrides,
 });
 
-const mockedAxios = vi.mocked(axios, true);
+const mockedHttp = vi.mocked(http, true);
 
 describe('incidentService', () => {
   beforeEach(() => {
@@ -77,7 +77,7 @@ describe('incidentService', () => {
       offset: 5,
     };
 
-    mockedAxios.get.mockResolvedValue({ data: response });
+    mockedHttp.get.mockResolvedValue({ data: response });
 
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -88,8 +88,8 @@ describe('incidentService', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(mockedAxios.get).toHaveBeenCalledTimes(1);
-    expect(mockedAxios.get).toHaveBeenCalledWith('/api/incidents', {
+    expect(mockedHttp.get).toHaveBeenCalledTimes(1);
+    expect(mockedHttp.get).toHaveBeenCalledWith('/', {
       params: {
         search: 'query',
         severity: 'High',
@@ -115,7 +115,7 @@ describe('incidentService', () => {
       offset: 0,
     };
 
-    mockedAxios.get.mockRejectedValue(new Error('boom'));
+    mockedHttp.get.mockRejectedValue(new Error('boom'));
 
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -127,7 +127,7 @@ describe('incidentService', () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
 
     expect(result.current.error?.message).toContain('Failed to fetch incidents');
-    expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+    expect(mockedHttp.get).toHaveBeenCalledTimes(1);
     client.clear();
   });
 
@@ -135,7 +135,7 @@ describe('incidentService', () => {
     const incident = buildIncident({ status: 'Open', id: 'abc' });
     const updated = { ...incident, status: 'Resolved' as const };
 
-    mockedAxios.patch.mockResolvedValue({ data: updated });
+    mockedHttp.patch.mockResolvedValue({ data: updated });
 
     let incidentsState: Incident[] = [incident];
     const setIncidents = (updater: (prev: Incident[]) => Incident[]) => {
@@ -166,7 +166,7 @@ describe('incidentService', () => {
     const cachedIncident = client.getQueryData<Incident>(['incident', incident.id]);
     const cachedList = client.getQueryData<IncidentsResponse>(['incidents', { limit: 10, offset: 0 }]);
 
-    expect(mockedAxios.patch).toHaveBeenCalledWith(`/api/incidents/${incident.id}` , { status: 'Resolved' });
+    expect(mockedHttp.patch).toHaveBeenCalledWith(`/${incident.id}`, { status: 'Resolved' });
     expect(cachedIncident?.status).toBe('Resolved');
     expect(cachedList?.incidents[0].status).toBe('Resolved');
     expect(incidentsState[0].status).toBe('Resolved');
@@ -176,7 +176,7 @@ describe('incidentService', () => {
   it('rolls back optimistic update when mutation fails', async () => {
     const incident = buildIncident({ status: 'Open', id: 'xyz' });
 
-    mockedAxios.patch.mockRejectedValue(new Error('fail'));
+    mockedHttp.patch.mockRejectedValue(new Error('fail'));
 
     let incidentsState: Incident[] = [incident];
     const setIncidents = (updater: (prev: Incident[]) => Incident[]) => {
@@ -221,7 +221,7 @@ describe('incidentService', () => {
     const updatedFirst = { ...first, status: 'Investigating' as const };
     const updatedSecond = { ...second, status: 'Investigating' as const };
 
-    mockedAxios.patch.mockImplementation((url: string) => {
+    mockedHttp.patch.mockImplementation((url: string) => {
       if (url.includes('/api/incidents/a')) {
         return Promise.resolve({ data: updatedFirst });
       }
@@ -253,7 +253,7 @@ describe('incidentService', () => {
 
     const cachedList = client.getQueryData<IncidentsResponse>(['incidents', { limit: 10, offset: 0 }]);
 
-    expect(mockedAxios.patch).toHaveBeenCalledTimes(2);
+    expect(mockedHttp.patch).toHaveBeenCalledTimes(2);
     expect(cachedList?.incidents.every((i) => i.status === 'Investigating')).toBe(true);
     expect(incidentsState.every((i) => i.status === 'Investigating')).toBe(true);
     client.clear();
@@ -263,7 +263,7 @@ describe('incidentService', () => {
     const first = buildIncident({ id: 'a', status: 'Open' });
     const second = buildIncident({ id: 'b', status: 'Investigating' });
 
-    mockedAxios.delete.mockRejectedValue(new Error('fail'));
+    mockedHttp.delete.mockRejectedValue(new Error('fail'));
 
     let incidentsState: Incident[] = [first, second];
     const setIncidents = (updater: (prev: Incident[]) => Incident[]) => {

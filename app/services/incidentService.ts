@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import axios from 'axios';
+import { http } from './httpClient';
 import type {
   Incident,
   IncidentFilters,
@@ -44,12 +44,12 @@ const fetchIncidents = async (
   };
 
   try {
-    const { data } = await axios.get<IncidentsResponse>('/api/incidents', {
+    const { data } = await http.get<IncidentsResponse>('/', {
       params,
       signal,
     });
     return data;
-  } catch (_error) {
+  } catch {
     throw new Error('Failed to fetch incidents');
   }
 };
@@ -60,9 +60,9 @@ const fetchIncidents = async (
  */
 const fetchIncidentDetails = async (id: string): Promise<Incident> => {
   try {
-    const { data } = await axios.get<Incident>(`/api/incidents/${id}`);
+    const { data } = await http.get<Incident>(`/${id}`);
     return data;
-  } catch (_error) {
+  } catch {
     throw new Error('Failed to fetch incident');
   }
 };
@@ -75,11 +75,9 @@ const fetchRelatedIncidents = async (
   id: string,
 ): Promise<{ related: Incident[] }> => {
   try {
-    const { data } = await axios.get<{ related: Incident[] }>(
-      `/api/incidents/${id}/related`,
-    );
+    const { data } = await http.get<{ related: Incident[] }>(`/${id}/related`);
     return data;
-  } catch (_error) {
+  } catch {
     throw new Error('Failed to fetch related incidents');
   }
 };
@@ -94,10 +92,7 @@ const patchIncident = async (
   data: Partial<Pick<Incident, 'status' | 'owner' | 'tags'>>,
 ): Promise<Incident> => {
   try {
-    const { data: result } = await axios.patch<Incident>(
-      `/api/incidents/${incidentId}`,
-      data,
-    );
+    const { data: result } = await http.patch<Incident>(`/${incidentId}`, data);
     return result;
   } catch (_error) {
     throw new Error('Failed to update incident');
@@ -110,9 +105,7 @@ const patchIncident = async (
  */
 const deleteIncident = async (incidentId: string): Promise<{ id: string }> => {
   try {
-    const { data } = await axios.delete<{ id: string }>(
-      `/api/incidents/${incidentId}`,
-    );
+    const { data } = await http.delete<{ id: string }>(`/${incidentId}`);
     return data;
   } catch (_error) {
     throw new Error('Failed to delete incident');
