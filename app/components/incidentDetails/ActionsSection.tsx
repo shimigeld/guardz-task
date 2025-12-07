@@ -1,6 +1,5 @@
 'use client';
 
-import { useMemo } from 'react';
 import { Box, Button, Chip, Stack, TextField, Typography } from '@mui/material';
 import type { Incident } from '@/types/incident';
 
@@ -9,24 +8,34 @@ interface ActionsSectionProps {
   ownerDraft: string;
   onOwnerChange: (value: string) => void;
   onAssignOwner: () => Promise<void> | void;
+  tagInput: string;
   tagsDraft: string[];
-  onTagsChange: (tags: string[]) => Promise<void> | void;
+  onTagsChange: (tags: string[], rawInput: string) => Promise<void> | void;
   onResolve: () => Promise<void> | void;
   isMutating?: boolean;
 }
+
+const normalizeTagsInput = (value: string): string[] =>
+  Array.from(
+    new Set(
+      value
+        .split(',')
+        .map((tag) => tag.replace(/\s+/g, ' ').trim())
+        .filter(Boolean),
+    ),
+  );
 
 export const ActionsSection = ({
   incident,
   ownerDraft,
   onOwnerChange,
   onAssignOwner,
+  tagInput,
   tagsDraft,
   onTagsChange,
   onResolve,
   isMutating,
 }: ActionsSectionProps) => {
-  const tagInput = useMemo(() => tagsDraft.join(', '), [tagsDraft]);
-
   return (
     <Box>
       <Typography variant="subtitle2" gutterBottom>
@@ -68,12 +77,7 @@ export const ActionsSection = ({
           size="small"
           value={tagInput}
           onChange={(event) =>
-            onTagsChange(
-              event.target.value
-                .split(',')
-                .map((tag) => tag.trim())
-                .filter(Boolean),
-            )
+            onTagsChange(normalizeTagsInput(event.target.value), event.target.value)
           }
           disabled={isMutating}
         />

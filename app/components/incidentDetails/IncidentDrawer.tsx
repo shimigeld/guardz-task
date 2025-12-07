@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Box, Divider, Drawer, Stack } from '@mui/material';
 import { useIncidentData } from '@/contexts/incidentDataContext';
 import { useActiveIncident } from '@/contexts/activeIncidentContext';
@@ -16,6 +16,7 @@ import { DrawerHeader } from './DrawerHeader';
 import { MetadataSection } from './MetadataSection';
 import { RelatedSection } from './RelatedSection';
 import { TimelineSection, type TimelineItem } from './TimelineSection';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 const buildTimeline = (incident?: Incident): TimelineItem[] => {
   if (!incident) return [];
@@ -53,7 +54,9 @@ export const IncidentDrawer = () => {
   const incident = incidentQuery.data;
   const relatedIncidents = relatedQuery.data?.related ?? [];
 
-  const [drafts, setDrafts] = useState<Record<string, { owner: string; tags: string[] }>>({});
+  const [drafts, setDrafts] = useState<
+    Record<string, { owner: string; tags: string[]; tagsInput?: string }>
+  >({});
 
   const ownerDraft = activeIncidentId
     ? drafts[activeIncidentId]?.owner ?? incident?.owner ?? ''
@@ -63,6 +66,12 @@ export const IncidentDrawer = () => {
     ? drafts[activeIncidentId]?.tags ?? incident?.tags ?? []
     : ([] as string[]);
 
+  const tagsInput = activeIncidentId
+    ? drafts[activeIncidentId]?.tagsInput ?? tagsDraft.join(', ')
+    : tagsDraft.join(', ');
+
+  const debouncedTags = useDebouncedValue(tagsDraft, 500);
+
   const handleOwnerChange = (value: string) => {
     if (!activeIncidentId) return;
     setDrafts((prev) => ({
@@ -70,6 +79,7 @@ export const IncidentDrawer = () => {
       [activeIncidentId]: {
         owner: value,
         tags: prev[activeIncidentId]?.tags ?? tagsDraft,
+        tagsInput: prev[activeIncidentId]?.tagsInput ?? tagsInput,
       },
     }));
   };
@@ -109,25 +119,30 @@ export const IncidentDrawer = () => {
     });
   };
 
-  const handleUpdateTags = async (nextTags: string[]) => {
+  const handleUpdateTags = async (nextTags: string[], rawInput: string) => {
     if (!activeIncidentId) return;
     setDrafts((prev) => ({
       ...prev,
       [activeIncidentId]: {
         owner: prev[activeIncidentId]?.owner ?? ownerDraft,
         tags: nextTags,
+        tagsInput: rawInput,
       },
     }));
-    const unchanged = incident
-      ? incident.tags.length === nextTags.length &&
-        incident.tags.every((tag, idx) => tag === nextTags[idx])
-      : false;
-    if (unchanged) return;
-    await mutation.mutateAsync({
-      incidentId: activeIncidentId,
-      data: { tags: nextTags },
-    });
   };
+
+  useEffect(() => {
+    if (!activeIncidentId || !incident) return;
+    const unchanged =
+      incident.tags.length === debouncedTags.length &&
+      incident.tags.every((tag, idx) => tag === debouncedTags[idx]);
+    if (unchanged) return;
+
+    mutation.mutateAsync({
+      incidentId: activeIncidentId,
+      data: { tags: debouncedTags },
+    });
+  }, [activeIncidentId, debouncedTags, incident, mutation]);
 
   if (!isOpen) {
     return null;
@@ -165,6 +180,7 @@ export const IncidentDrawer = () => {
               ownerDraft={ownerDraft}
               onOwnerChange={handleOwnerChange}
               onAssignOwner={handleAssignOwner}
+              tagInput={tagsInput}
               tagsDraft={tagsDraft}
               onTagsChange={handleUpdateTags}
               onResolve={handleResolve}

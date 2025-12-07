@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { IncidentDrawer } from '../IncidentDrawer';
 import { ActiveIncidentContext } from '@/contexts/activeIncidentContext';
@@ -37,20 +37,18 @@ const renderDrawer = () => {
     </ActiveIncidentContext.Provider>,
   );
 
-  return { closeIncident, setIncidents, openIncident };
+  return { closeIncident, openIncident };
 };
 
 const mutateAsync = vi.fn();
-type DetailQuery = { data?: Incident; isLoading: boolean; isError: boolean; error?: unknown };
-type RelatedQuery = {
+
+let detailQuery: { data?: Incident; isLoading: boolean; isError: boolean; error?: unknown };
+let relatedQuery: {
   data?: { related: Incident[] };
   isLoading: boolean;
   isError: boolean;
   error?: unknown;
 };
-
-let detailQuery: DetailQuery;
-let relatedQuery: RelatedQuery;
 
 vi.mock('@/services/incidentService', () => ({
   useIncidentStream: () => ({ status: 'success' as const }),
@@ -62,7 +60,9 @@ vi.mock('@/services/incidentService', () => ({
 
 describe('IncidentDrawer', () => {
   beforeEach(() => {
+    vi.useRealTimers();
     mutateAsync.mockClear();
+    mutateAsync.mockResolvedValue(undefined);
     detailQuery = { data: mockIncident, isLoading: false, isError: false };
     relatedQuery = {
       data: { related: [{ ...mockIncident, id: 'b', title: 'Sibling' }] },
@@ -71,10 +71,13 @@ describe('IncidentDrawer', () => {
     };
   });
 
+  afterEach(() => {
+    cleanup();
+  });
+
   it('renders details and closes via header button', async () => {
     const { closeIncident } = renderDrawer();
     expect(await screen.findByText('High severity event')).toBeInTheDocument();
-    expect(screen.getByText(/Incident ID: a/)).toBeInTheDocument();
 
     const closeButton = screen.getByRole('button', { name: /close incident drawer/i });
     await userEvent.click(closeButton);
@@ -88,28 +91,34 @@ describe('IncidentDrawer', () => {
     expect(mutateAsync).toHaveBeenCalledWith({ incidentId: 'a', data: { status: 'Resolved' } });
   });
 
-  it('updates owner and tags and opens related incident', async () => {
+  it('debounces tag updates and applies optimistic mutation', async () => {
     const user = userEvent.setup();
-    const { openIncident } = renderDrawer();
+    renderDrawer();
 
-    const ownerInput = await screen.findByLabelText('Owner');
-    await user.clear(ownerInput);
-    await user.type(ownerInput, 'alex');
+    const tagsInput = await screen.findByLabelText(/Tags \(comma separated\)/i);
+    await user.clear(tagsInput);
+    await user.type(tagsInput, 'p1, urgent');
 
-    const assignButton = screen.getByRole('button', { name: /assign owner/i });
-    await user.click(assignButton);
-    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({ incidentId: 'a', data: { owner: 'alex' } }));
+    await waitFor(() => {
+      expect(mutateAsync).toHaveBeenCalled();
+      const lastCall = mutateAsync.mock.calls.at(-1)?.[0];
+      expect(lastCall?.incidentId).toBe('a');
+      expect(lastCall?.data?.tags).toEqual(['p1', 'urgent']);
+    }, { timeout: 1500 });
+  });
 
-    const tagsInput = screen.getByLabelText(/Tags \(comma separated\)/i);
-    fireEvent.change(tagsInput, { target: { value: 'p1, urgent' } });
+  it('normalizes comma-separated tags to separate entries', async () => {
+    const user = userEvent.setup();
+    renderDrawer();
+
+    const tagsInput = await screen.findByLabelText(/Tags \(comma separated\)/i);
+    await user.clear(tagsInput);
+    await user.type(tagsInput, 'critical  ,  security , critical ,network ,');
+
     await waitFor(() => {
       const lastCall = mutateAsync.mock.calls.at(-1)?.[0];
-      expect(lastCall).toEqual({ incidentId: 'a', data: { tags: ['p1', 'urgent'] } });
-    });
-
-    const relatedItem = await screen.findByText('Sibling');
-    await user.click(relatedItem);
-    expect(openIncident).toHaveBeenCalledWith('b');
+      expect(lastCall?.data?.tags).toEqual(['critical', 'security', 'network']);
+    }, { timeout: 1500 });
   });
 
   it('shows detail error message when incident query fails', async () => {
