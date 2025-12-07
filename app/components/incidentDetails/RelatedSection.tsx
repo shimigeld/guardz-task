@@ -9,6 +9,7 @@ interface RelatedSectionProps {
   relatedIncidents: Incident[];
   isLoading: boolean;
   isError?: boolean;
+  errorMessage?: string;
   currentIncidentId?: string | null;
   onSelect: (id: string) => void;
 }
@@ -17,6 +18,7 @@ export const RelatedSection = ({
   relatedIncidents,
   isLoading,
   isError,
+  errorMessage,
   currentIncidentId,
   onSelect,
 }: RelatedSectionProps) => (
@@ -28,7 +30,9 @@ export const RelatedSection = ({
     {isLoading ? (
       <LoadingState message="Loading related incidents..." minHeight={120} size={20} />
     ) : isError ? (
-      <Alert severity="error">Failed to load related incidents.</Alert>
+      <Alert severity="error">
+        Failed to load related incidents{errorMessage ? `: ${errorMessage}` : '.'}
+      </Alert>
     ) : relatedIncidents.length === 0 ? (
       <Typography variant="body2" color="text.secondary">
         No related incidents found.

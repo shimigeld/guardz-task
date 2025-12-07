@@ -94,7 +94,13 @@ export const IncidentTable = () => {
 				onClose={() => setShowToast(false)}
 			/>
 
-			{streamStatus !== 'success' && (
+			{streamStatus === 'error' && (
+				<Alert severity="error" sx={{ mt: 1 }}>
+					Live stream disconnected. Retrying shortly.
+				</Alert>
+			)}
+
+			{streamStatus !== 'error' && streamStatus !== 'success' && (
 				<Alert severity="info" sx={{ mt: 1 }}>
 					Streaming status: {streamStatus}
 				</Alert>

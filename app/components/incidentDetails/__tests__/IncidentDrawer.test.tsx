@@ -41,17 +41,34 @@ const renderDrawer = () => {
 };
 
 const mutateAsync = vi.fn();
+type DetailQuery = { data?: Incident; isLoading: boolean; isError: boolean; error?: unknown };
+type RelatedQuery = {
+  data?: { related: Incident[] };
+  isLoading: boolean;
+  isError: boolean;
+  error?: unknown;
+};
+
+let detailQuery: DetailQuery;
+let relatedQuery: RelatedQuery;
+
 vi.mock('@/services/incidentService', () => ({
   useIncidentStream: () => ({ status: 'success' as const }),
   useIncidentsQuery: () => ({ data: { incidents: [mockIncident], total: 1 }, isLoading: false, error: null }),
-  useIncidentDetailsQuery: () => ({ data: mockIncident, isLoading: false, isError: false }),
-  useRelatedIncidentsQuery: () => ({ data: { related: [{ ...mockIncident, id: 'b', title: 'Sibling' }] }, isLoading: false, isError: false }),
+  useIncidentDetailsQuery: () => detailQuery,
+  useRelatedIncidentsQuery: () => relatedQuery,
   useIncidentUpdateMutation: () => ({ mutateAsync, isPending: false, error: null }),
 }));
 
 describe('IncidentDrawer', () => {
   beforeEach(() => {
     mutateAsync.mockClear();
+    detailQuery = { data: mockIncident, isLoading: false, isError: false };
+    relatedQuery = {
+      data: { related: [{ ...mockIncident, id: 'b', title: 'Sibling' }] },
+      isLoading: false,
+      isError: false,
+    };
   });
 
   it('renders details and closes via header button', async () => {
@@ -93,5 +110,23 @@ describe('IncidentDrawer', () => {
     const relatedItem = await screen.findByText('Sibling');
     await user.click(relatedItem);
     expect(openIncident).toHaveBeenCalledWith('b');
+  });
+
+  it('shows detail error message when incident query fails', async () => {
+    detailQuery = { isLoading: false, isError: true, error: new Error('boom') };
+
+    renderDrawer();
+
+    expect(await screen.findByText(/Failed to load incident details/i)).toBeInTheDocument();
+    expect(screen.getByText(/boom/i)).toBeInTheDocument();
+  });
+
+  it('shows related error message when related query fails', async () => {
+    relatedQuery = { isLoading: false, isError: true, error: new Error('no related') };
+
+    renderDrawer();
+
+    expect(await screen.findByText(/Failed to load related incidents/i)).toBeInTheDocument();
+    expect(screen.getByText(/no related/i)).toBeInTheDocument();
   });
 });

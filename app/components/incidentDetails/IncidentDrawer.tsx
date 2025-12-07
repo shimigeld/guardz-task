@@ -146,7 +146,10 @@ export const IncidentDrawer = () => {
         {incidentQuery.isLoading ? (
           <LoadingState message="Loading incident details..." minHeight={240} />
         ) : incidentQuery.isError ? (
-          <Alert severity="error">Failed to load incident details.</Alert>
+          <Alert severity="error">
+            Failed to load incident details
+            {incidentQuery.error instanceof Error ? `: ${incidentQuery.error.message}` : '.'}
+          </Alert>
         ) : !incident ? (
           <Alert severity="warning">Incident not found.</Alert>
         ) : (
@@ -178,6 +181,11 @@ export const IncidentDrawer = () => {
               relatedIncidents={relatedIncidents}
               isLoading={relatedQuery.isLoading}
               isError={relatedQuery.isError}
+              errorMessage={
+                relatedQuery.error && relatedQuery.error instanceof Error
+                  ? relatedQuery.error.message
+                  : undefined
+              }
               onSelect={openIncident}
               currentIncidentId={incident.id}
             />

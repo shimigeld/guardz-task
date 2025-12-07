@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { IncidentTable } from '../IncidentTable';
 
-type StreamStatus = 'success' | 'connecting';
+type StreamStatus = 'success' | 'connecting' | 'error';
 
 const incidents = [
   {
@@ -139,5 +139,18 @@ describe('IncidentTable', () => {
 
     expect(await screen.findByText('2 new incidents')).toBeInTheDocument();
     expect(screen.getByText(/Streaming status: connecting/i)).toBeInTheDocument();
+  });
+
+  it('shows stream error alert', () => {
+    mockReturn = {
+      ...buildMockReturn(),
+      streamStatus: 'error',
+    };
+
+    render(<IncidentTable />);
+
+    expect(
+      screen.getByText(/Live stream disconnected\. Retrying shortly\./i),
+    ).toBeInTheDocument();
   });
 });
