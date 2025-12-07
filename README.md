@@ -2,6 +2,21 @@
 
 Next.js + TypeORM demo that streams, filters, and bulk-updates incidents against a lightweight API. Includes unit tests (Vitest) and Playwright E2E coverage.
 
+## What it does
+
+- Live incident feed via EventSource with pause/resume and optional low-severity muting.
+- Filtering (severity, status, account, source, date range, search) with persisted table sort and selection.
+- Bulk actions (resolve, investigate, delete) with optimistic updates and rollbacks.
+- Incident drawer for assignment, tagging, related incidents, and timeline.
+- Seedable SQLite backend with an auto incident generator and REST routes under `/api/incidents`.
+
+## Architecture
+
+- **UI**: Next.js (App Router), MUI components, React Query for data/state, context providers for filters/table/selection/stream prefs.
+- **Data**: TypeORM + SQLite, streaming endpoint `/api/incidents/stream`, REST for CRUD and related lookups.
+- **Testing**: Vitest + Testing Library (unit/integration), Playwright (E2E streaming, filters, bulk flows). Test artifacts excluded via `.gitignore`.
+- **Tooling**: ESLint, Prettier, TypeScript, PostCSS/Tailwind base, Playwright config for e2e.
+
 ## Prerequisites
 
 - Node.js 18+
