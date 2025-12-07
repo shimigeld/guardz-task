@@ -1,7 +1,8 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import axios from 'axios';
 import {
   useIncidentBulkActionMutation,
   useIncidentStream,
@@ -9,6 +10,20 @@ import {
   useIncidentsQuery,
 } from '../incidentService';
 import type { Incident, IncidentFilters, IncidentsResponse, TableState } from '@/types/incident';
+
+vi.mock('axios', () => {
+  const get = vi.fn();
+  const patch = vi.fn();
+  const del = vi.fn();
+
+  return {
+    default: {
+      get,
+      patch,
+      delete: del,
+    },
+  };
+});
 
 const createWrapper = (client: QueryClient) =>
   function Wrapper({ children }: { children: React.ReactNode }) {
@@ -29,7 +44,13 @@ const buildIncident = (overrides: Partial<Incident> = {}): Incident => ({
   ...overrides,
 });
 
+const mockedAxios = vi.mocked(axios, true);
+
 describe('incidentService', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -56,11 +77,7 @@ describe('incidentService', () => {
       offset: 5,
     };
 
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(response),
-    });
-    global.fetch = fetchMock as unknown as typeof fetch;
+    mockedAxios.get.mockResolvedValue({ data: response });
 
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -71,11 +88,21 @@ describe('incidentService', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][0]).toBe(
-      '/api/incidents?search=query&severity=High&status=Open&account=acc-1&source=src-1&startDate=2024-01-01&endDate=2024-01-31&sortBy=timestamp&sortOrder=DESC&limit=20&offset=5',
-    );
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+    expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+    expect(mockedAxios.get).toHaveBeenCalledWith('/api/incidents', {
+      params: {
+        search: 'query',
+        severity: 'High',
+        status: 'Open',
+        account: 'acc-1',
+        source: 'src-1',
+        startDate: '2024-01-01',
+        endDate: '2024-01-31',
+        sortBy: 'timestamp',
+        sortOrder: 'DESC',
+        limit: 20,
+        offset: 5,
+      },
       signal: expect.any(AbortSignal),
     });
     expect(result.current.data).toEqual(response);
@@ -88,8 +115,7 @@ describe('incidentService', () => {
       offset: 0,
     };
 
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false });
-    global.fetch = fetchMock as unknown as typeof fetch;
+    mockedAxios.get.mockRejectedValue(new Error('boom'));
 
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -101,7 +127,7 @@ describe('incidentService', () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
 
     expect(result.current.error?.message).toContain('Failed to fetch incidents');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(mockedAxios.get).toHaveBeenCalledTimes(1);
     client.clear();
   });
 
@@ -109,11 +135,7 @@ describe('incidentService', () => {
     const incident = buildIncident({ status: 'Open', id: 'abc' });
     const updated = { ...incident, status: 'Resolved' as const };
 
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(updated),
-    });
-    global.fetch = fetchMock as unknown as typeof fetch;
+    mockedAxios.patch.mockResolvedValue({ data: updated });
 
     let incidentsState: Incident[] = [incident];
     const setIncidents = (updater: (prev: Incident[]) => Incident[]) => {
@@ -144,7 +166,7 @@ describe('incidentService', () => {
     const cachedIncident = client.getQueryData<Incident>(['incident', incident.id]);
     const cachedList = client.getQueryData<IncidentsResponse>(['incidents', { limit: 10, offset: 0 }]);
 
-    expect(fetchMock).toHaveBeenCalledWith(`/api/incidents/${incident.id}`, expect.objectContaining({ method: 'PATCH' }));
+    expect(mockedAxios.patch).toHaveBeenCalledWith(`/api/incidents/${incident.id}` , { status: 'Resolved' });
     expect(cachedIncident?.status).toBe('Resolved');
     expect(cachedList?.incidents[0].status).toBe('Resolved');
     expect(incidentsState[0].status).toBe('Resolved');
@@ -154,8 +176,7 @@ describe('incidentService', () => {
   it('rolls back optimistic update when mutation fails', async () => {
     const incident = buildIncident({ status: 'Open', id: 'xyz' });
 
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false });
-    global.fetch = fetchMock as unknown as typeof fetch;
+    mockedAxios.patch.mockRejectedValue(new Error('fail'));
 
     let incidentsState: Incident[] = [incident];
     const setIncidents = (updater: (prev: Incident[]) => Incident[]) => {
@@ -200,16 +221,15 @@ describe('incidentService', () => {
     const updatedFirst = { ...first, status: 'Investigating' as const };
     const updatedSecond = { ...second, status: 'Investigating' as const };
 
-    const fetchMock = vi.fn().mockImplementation((url: string) => {
+    mockedAxios.patch.mockImplementation((url: string) => {
       if (url.includes('/api/incidents/a')) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve(updatedFirst) });
+        return Promise.resolve({ data: updatedFirst });
       }
       if (url.includes('/api/incidents/b')) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve(updatedSecond) });
+        return Promise.resolve({ data: updatedSecond });
       }
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      return Promise.resolve({ data: {} });
     });
-    global.fetch = fetchMock as unknown as typeof fetch;
 
     let incidentsState: Incident[] = [first, second];
     const setIncidents = (updater: (prev: Incident[]) => Incident[]) => {
@@ -233,7 +253,7 @@ describe('incidentService', () => {
 
     const cachedList = client.getQueryData<IncidentsResponse>(['incidents', { limit: 10, offset: 0 }]);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(mockedAxios.patch).toHaveBeenCalledTimes(2);
     expect(cachedList?.incidents.every((i) => i.status === 'Investigating')).toBe(true);
     expect(incidentsState.every((i) => i.status === 'Investigating')).toBe(true);
     client.clear();
@@ -243,8 +263,7 @@ describe('incidentService', () => {
     const first = buildIncident({ id: 'a', status: 'Open' });
     const second = buildIncident({ id: 'b', status: 'Investigating' });
 
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false });
-    global.fetch = fetchMock as unknown as typeof fetch;
+    mockedAxios.delete.mockRejectedValue(new Error('fail'));
 
     let incidentsState: Incident[] = [first, second];
     const setIncidents = (updater: (prev: Incident[]) => Incident[]) => {
@@ -264,7 +283,7 @@ describe('incidentService', () => {
       { wrapper: createWrapper(client) },
     );
 
-    await expect(result.current.mutateAsync({ ids: ['a', 'b'], action: 'delete' })).rejects.toThrow();
+    await expect(result.current.mutateAsync({ ids: ['a', 'b'], action: 'delete' })).rejects.toThrow('Failed to delete incident');
 
     const cachedList = client.getQueryData<IncidentsResponse>(['incidents', { limit: 10, offset: 0 }]);
 

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
+import axios from 'axios';
 import type {
   Incident,
   IncidentFilters,
@@ -28,27 +29,29 @@ const fetchIncidents = async (
   filters: IncidentFilters & TableState,
   signal?: AbortSignal,
 ): Promise<IncidentsResponse> => {
-  const params = new URLSearchParams();
+  const params: Record<string, string | number | undefined> = {
+    search: filters.search,
+    severity: filters.severity,
+    status: filters.status,
+    account: filters.account,
+    source: filters.source,
+    startDate: filters.startDate,
+    endDate: filters.endDate,
+    sortBy: filters.sortBy,
+    sortOrder: filters.sortOrder,
+    limit: filters.limit,
+    offset: filters.offset,
+  };
 
-  if (filters.search) params.append('search', filters.search);
-  if (filters.severity) params.append('severity', filters.severity);
-  if (filters.status) params.append('status', filters.status);
-  if (filters.account) params.append('account', filters.account);
-  if (filters.source) params.append('source', filters.source);
-  if (filters.startDate) params.append('startDate', filters.startDate);
-  if (filters.endDate) params.append('endDate', filters.endDate);
-  if (filters.sortBy) params.append('sortBy', filters.sortBy);
-  if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
-  if (filters.limit) params.append('limit', String(filters.limit));
-  if (filters.offset) params.append('offset', String(filters.offset));
-
-  const response = await fetch(`/api/incidents?${params.toString()}`, {
-    signal,
-  });
-  if (!response.ok) {
+  try {
+    const { data } = await axios.get<IncidentsResponse>('/api/incidents', {
+      params,
+      signal,
+    });
+    return data;
+  } catch (_error) {
     throw new Error('Failed to fetch incidents');
   }
-  return response.json();
 };
 
 /**
@@ -56,11 +59,12 @@ const fetchIncidents = async (
  * @param id Incident id to retrieve.
  */
 const fetchIncidentDetails = async (id: string): Promise<Incident> => {
-  const response = await fetch(`/api/incidents/${id}`);
-  if (!response.ok) {
+  try {
+    const { data } = await axios.get<Incident>(`/api/incidents/${id}`);
+    return data;
+  } catch (_error) {
     throw new Error('Failed to fetch incident');
   }
-  return response.json();
 };
 
 /**
@@ -70,11 +74,14 @@ const fetchIncidentDetails = async (id: string): Promise<Incident> => {
 const fetchRelatedIncidents = async (
   id: string,
 ): Promise<{ related: Incident[] }> => {
-  const response = await fetch(`/api/incidents/${id}/related`);
-  if (!response.ok) {
+  try {
+    const { data } = await axios.get<{ related: Incident[] }>(
+      `/api/incidents/${id}/related`,
+    );
+    return data;
+  } catch (_error) {
     throw new Error('Failed to fetch related incidents');
   }
-  return response.json();
 };
 
 /**
@@ -86,17 +93,15 @@ const patchIncident = async (
   incidentId: string,
   data: Partial<Pick<Incident, 'status' | 'owner' | 'tags'>>,
 ): Promise<Incident> => {
-  const response = await fetch(`/api/incidents/${incidentId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
+  try {
+    const { data: result } = await axios.patch<Incident>(
+      `/api/incidents/${incidentId}`,
+      data,
+    );
+    return result;
+  } catch (_error) {
     throw new Error('Failed to update incident');
   }
-
-  return response.json();
 };
 
 /**
@@ -104,15 +109,14 @@ const patchIncident = async (
  * @param incidentId Target incident id.
  */
 const deleteIncident = async (incidentId: string): Promise<{ id: string }> => {
-  const response = await fetch(`/api/incidents/${incidentId}`, {
-    method: 'DELETE',
-  });
-
-  if (!response.ok) {
+  try {
+    const { data } = await axios.delete<{ id: string }>(
+      `/api/incidents/${incidentId}`,
+    );
+    return data;
+  } catch (_error) {
     throw new Error('Failed to delete incident');
   }
-
-  return response.json();
 };
 
 /**
