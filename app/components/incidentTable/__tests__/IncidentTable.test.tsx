@@ -53,6 +53,7 @@ type MockReturn = {
   handleSelectAll: typeof handleSelectAll;
   handleSelectRow: typeof handleSelectRow;
   handleRowClick: typeof handleRowClick;
+  handleToastNavigation: () => void;
   isAllSelected: boolean;
   isSomeSelected: boolean;
   streamStatus: StreamStatus;
@@ -77,6 +78,7 @@ const buildMockReturn = (): MockReturn => ({
   handleSelectAll,
   handleSelectRow,
   handleRowClick,
+  handleToastNavigation: () => {},
   isAllSelected: false,
   isSomeSelected: false,
   streamStatus: 'success',

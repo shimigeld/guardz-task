@@ -25,6 +25,7 @@ export const IncidentTable = () => {
     showToast,
     setShowToast,
     clearNewIncidentHighlights,
+	handleToastNavigation,
     handleSort,
     handleSelectAll,
     handleSelectRow,
@@ -83,11 +84,13 @@ export const IncidentTable = () => {
 				ContentProps={{ sx: { cursor: 'pointer' }, role: 'button', tabIndex: 0 }}
 				anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
 				onClick={() => {
+					handleToastNavigation();
 					window.scrollTo({ top: 0, behavior: 'smooth' });
 				}}
 				onKeyDown={(e) => {
 					if (e.key === 'Enter' || e.key === ' ') {
 						e.preventDefault();
+						handleToastNavigation();
 						window.scrollTo({ top: 0, behavior: 'smooth' });
 					}
 				}}

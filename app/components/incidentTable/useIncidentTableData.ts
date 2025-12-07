@@ -48,6 +48,7 @@ export const useIncidentTableData = () => {
   const [streamDroppedCount, setStreamDroppedCount] = useState(0);
   const isAtTopRef = useRef(true);
   const showToastRef = useRef(false);
+  const suppressClearOnNextTopRef = useRef(false);
   const streamQueueRef = useRef<Incident[]>([]);
   const streamOrderRef = useRef<string[]>([]);
 
@@ -185,6 +186,11 @@ export const useIncidentTableData = () => {
     setShowToast(false);
   }, []);
 
+  const handleToastNavigation = useCallback(() => {
+    suppressClearOnNextTopRef.current = true;
+    setShowToast(false);
+  }, []);
+
   useEffect(() => {
     showToastRef.current = showToast;
   }, [showToast]);
@@ -194,6 +200,10 @@ export const useIncidentTableData = () => {
       const atTop = window.scrollY < 16;
       isAtTopRef.current = atTop;
       if (atTop && showToastRef.current) {
+        if (suppressClearOnNextTopRef.current) {
+          suppressClearOnNextTopRef.current = false;
+          return;
+        }
         clearNewIncidentHighlights();
       }
     };
@@ -267,6 +277,7 @@ export const useIncidentTableData = () => {
     showToast,
     setShowToast,
     clearNewIncidentHighlights,
+    handleToastNavigation,
     handleSort,
     handleSelectAll,
     handleSelectRow,
