@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import { http } from './httpClient';
+import {
+  fetchIncidentsApi,
+  fetchIncidentDetailsApi,
+  fetchRelatedIncidentsApi,
+  patchIncidentApi,
+  deleteIncidentApi,
+} from './incidentApi';
 import type {
   Incident,
   IncidentFilters,
@@ -9,12 +15,14 @@ import type {
   IncidentBulkAction,
 } from '@/types/incident';
 
+// Add the missing alias for shared filters/table state
+type IncidentQueryFilters = IncidentFilters & TableState;
+
 /**
  * Stable query keys for incidents, related incidents, and stream queries.
  */
 const queryKeys = {
-  incidents: (filters: IncidentFilters & TableState) =>
-    ['incidents', filters] as const,
+  incidents: (filters: IncidentQueryFilters) => ['incidents', filters] as const,
   incident: (id?: string | null) => ['incident', id] as const,
   related: (id?: string | null) => ['incident-related', id] as const,
   stream: ['incident-stream'] as const,
@@ -22,33 +30,13 @@ const queryKeys = {
 
 /**
  * Fetch incidents with filters and table state encoded as query params.
- * @param filters Incident filters and table pagination/sort state.
- * @param signal Optional abort signal for cancellation.
  */
 const fetchIncidents = async (
-  filters: IncidentFilters & TableState,
+  filters: IncidentQueryFilters,
   signal?: AbortSignal,
 ): Promise<IncidentsResponse> => {
-  const params: Record<string, string | number | undefined> = {
-    search: filters.search,
-    severity: filters.severity,
-    status: filters.status,
-    account: filters.account,
-    source: filters.source,
-    startDate: filters.startDate,
-    endDate: filters.endDate,
-    sortBy: filters.sortBy,
-    sortOrder: filters.sortOrder,
-    limit: filters.limit,
-    offset: filters.offset,
-  };
-
   try {
-    const { data } = await http.get<IncidentsResponse>('/', {
-      params,
-      signal,
-    });
-    return data;
+    return await fetchIncidentsApi(filters, signal);
   } catch {
     throw new Error('Failed to fetch incidents');
   }
@@ -60,8 +48,7 @@ const fetchIncidents = async (
  */
 const fetchIncidentDetails = async (id: string): Promise<Incident> => {
   try {
-    const { data } = await http.get<Incident>(`/${id}`);
-    return data;
+    return await fetchIncidentDetailsApi(id);
   } catch {
     throw new Error('Failed to fetch incident');
   }
@@ -75,8 +62,7 @@ const fetchRelatedIncidents = async (
   id: string,
 ): Promise<{ related: Incident[] }> => {
   try {
-    const { data } = await http.get<{ related: Incident[] }>(`/${id}/related`);
-    return data;
+    return await fetchRelatedIncidentsApi(id);
   } catch {
     throw new Error('Failed to fetch related incidents');
   }
@@ -92,8 +78,7 @@ const patchIncident = async (
   data: Partial<Pick<Incident, 'status' | 'owner' | 'tags'>>,
 ): Promise<Incident> => {
   try {
-    const { data: result } = await http.patch<Incident>(`/${incidentId}`, data);
-    return result;
+    return await patchIncidentApi(incidentId, data);
   } catch (_error) {
     throw new Error('Failed to update incident');
   }
@@ -105,17 +90,14 @@ const patchIncident = async (
  */
 const deleteIncident = async (incidentId: string): Promise<{ id: string }> => {
   try {
-    const { data } = await http.delete<{ id: string }>(`/${incidentId}`);
-    return data;
+    return await deleteIncidentApi(incidentId);
   } catch (_error) {
     throw new Error('Failed to delete incident');
   }
 };
 
 /**
- * Helper to merge partial fields into an incident while keeping tags/status/owner typed.
- * @param target Original incident.
- * @param patch Partial updates to apply.
+ * Merge partial incident fields while preserving typed status/owner/tags.
  */
 const mergeIncident = (
   target: Incident,
@@ -130,9 +112,8 @@ const mergeIncident = (
 
 /**
  * Query hook for incident list with filters/state.
- * @param filters Incident filters and table state for the query key.
  */
-export const useIncidentsQuery = (filters: IncidentFilters & TableState) =>
+export const useIncidentsQuery = (filters: IncidentQueryFilters) =>
   useQuery({
     queryKey: queryKeys.incidents(filters),
     queryFn: ({ signal }) => fetchIncidents(filters, signal),
@@ -140,7 +121,6 @@ export const useIncidentsQuery = (filters: IncidentFilters & TableState) =>
 
 /**
  * Query hook for a single incident by id (enabled when id provided).
- * @param incidentId Incident id to fetch.
  */
 export const useIncidentDetailsQuery = (incidentId?: string | null) =>
   useQuery<Incident>({
@@ -156,7 +136,6 @@ export const useIncidentDetailsQuery = (incidentId?: string | null) =>
 
 /**
  * Query hook for related incidents (enabled when id provided).
- * @param incidentId Incident id to fetch related incidents for.
  */
 export const useRelatedIncidentsQuery = (incidentId?: string | null) =>
   useQuery<{ related: Incident[] }>({
@@ -172,7 +151,6 @@ export const useRelatedIncidentsQuery = (incidentId?: string | null) =>
 
 /**
  * Mutation hook to patch an incident with optimistic cache updates for list and detail queries.
- * @param setIncidents Updater for local incidents state used for optimistic UI updates.
  */
 export const useIncidentUpdateMutation = (
   setIncidents: (updater: (prev: Incident[]) => Incident[]) => void,
@@ -290,8 +268,6 @@ export const useIncidentUpdateMutation = (
 
 /**
  * Mutation hook for bulk resolve/investigate/delete operations with optimistic updates and rollback.
- * @param incidentsSnapshot Snapshot of current incidents for rollback.
- * @param setIncidents Updater for local incidents state.
  */
 export const useIncidentBulkActionMutation = (
   incidentsSnapshot: Incident[],
@@ -420,7 +396,6 @@ export const useIncidentBulkActionMutation = (
 
 /**
  * Streaming query using EventSource; hooks incident handler, queues, and refetch triggers on new events.
- * @param onIncident Callback invoked with each streamed incident.
  */
 export const useIncidentStream = (onIncident: (incident: Incident) => void) => {
   const queryClient = useQueryClient();

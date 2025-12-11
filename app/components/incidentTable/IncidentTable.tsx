@@ -24,8 +24,7 @@ export const IncidentTable = () => {
     newIncidentIds,
     showToast,
     setShowToast,
-    clearNewIncidentHighlights,
-	handleToastNavigation,
+    handleToastNavigation,
     handleSort,
     handleSelectAll,
     handleSelectRow,
@@ -81,7 +80,7 @@ export const IncidentTable = () => {
 			<Snackbar
 				open={showToast && hasNewIncidents}
 				message={`${newIncidentIds.size} new incident${newIncidentIds.size === 1 ? '' : 's'}`}
-				ContentProps={{ sx: { cursor: 'pointer' }, role: 'button', tabIndex: 0 }}
+				slotProps={{ root: { sx: { cursor: 'pointer' }, role: 'button', tabIndex: 0 } }}
 				anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
 				onClick={() => {
 					handleToastNavigation();
